@@ -11,8 +11,9 @@ sudo apt-mark hold kubelet kubeadm kubectl
 
 kubectl version --client && kubeadm version
 
-sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+sudo sed -i.bak '/swap/d' /etc/fstab
 sudo swapoff -a
+sudo rm /swap.img
 
 # Enable kernel modules
 sudo modprobe overlay
