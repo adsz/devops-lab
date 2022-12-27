@@ -2,7 +2,7 @@
 - hosts: hp
   become: yes
   remote_user: root
-  become_user: root
+    #  become_user: root
   tasks:
   - name: yum update
     yum:
