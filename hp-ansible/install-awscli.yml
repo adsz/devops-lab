@@ -1,0 +1,19 @@
+---
+- hosts: hp
+  become: yes
+  remote_user: root
+  become_user: root
+  tasks:
+  - name: yum update
+    yum:
+      name: '*'
+      state: latest
+
+        #  - name: Install java
+        #yum:
+        #name: java-11-openjdk-devel
+        #state: present
+  - name: Install unzip
+    yum:
+      name: unzip
+      state: latest
