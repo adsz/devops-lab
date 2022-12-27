@@ -17,3 +17,17 @@
     yum:
       name: unzip
       state: latest
+  - name: Unarchive AWS-CLI
+    ansible.builtin.unarchive:
+      src: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+      dest: /tmp/
+      remote_src: yes
+  - name: Install AWS-CLI
+    ansible.builtin.command:
+      cmd: /tmp/aws/install --update
+ 
+  - name: Show AWS-CLI version
+    shell: aws --version
+    register: comand_output
+  - debug:
+      var: comand_output.stdout_lines
