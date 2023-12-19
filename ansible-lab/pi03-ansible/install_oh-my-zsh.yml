@@ -1,0 +1,9 @@
+---
+- hosts: pi
+  become: yes
+  remote_user: root
+  become_user: root
+  
+  roles:
+    - install_oh-my-zsh
+    # - copy_config_files

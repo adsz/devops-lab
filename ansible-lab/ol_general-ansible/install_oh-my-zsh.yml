@@ -1,0 +1,13 @@
+---
+- hosts: ol-test-01
+  become: yes
+  #remote_user: ansible
+  become_user: root
+  vars_files:
+    - secret.yml
+  # become_pass: "{{ root_password_ol-test-01 }}"
+  
+  roles:
+    # - install_oh-my-zsh
+    - copy_config_files
+  

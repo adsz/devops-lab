@@ -1,0 +1,42 @@
+---
+- name: Copy prometheus.yml
+  ansible.builtin.copy:
+    src: ../files/prometheus.yml
+    dest: /etc/prometheus/prometheus.yml
+    owner: root
+    group: root
+    mode: '0775'
+    backup: yes
+- name: Create prometheus.service
+  ansible.builtin.copy:
+    src: ../files/prometheus.service
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: '0775'
+    backup: yes
+- name: Modify folder permissions 
+  ansible.builtin.shell: |
+    sudo chown prometheus:prometheus /usr/local/bin/prom*
+    for i in rules rules.d files_sd consoles console_libraries; do sudo chown -R prometheus:prometheus /etc/prometheus/${i}; done
+    for i in rules rules.d files_sd consoles console_libraries; do sudo chmod -R 775 /etc/prometheus/${i}; done
+    sudo chown -R prometheus:prometheus /var/lib/prometheus/
+    sudo sed -i 's/--web.listen-address=0.0.0.0:9090/--web.listen-address=0.0.0.0:9091/g' /etc/systemd/system/prometheus.service
+    sed -i 's/9090/9091/g' /etc/prometheus/prometheus.yml
+  args:
+    executable: /bin/bash    
+# - name: Reload systemd
+#   sudo: yes
+#   command: systemctl daemon-reload
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+- name: Start prometheus service
+  ansible.builtin.systemd:
+    state: started
+    name: prometheus
+- name: Enable prometheus service
+  ansible.builtin.systemd:
+    enabled: yes
+    name: prometheus
+    masked: no

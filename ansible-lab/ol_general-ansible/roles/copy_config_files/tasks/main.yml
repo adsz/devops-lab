@@ -1,0 +1,16 @@
+---
+- name: Git checkout
+  ansible.builtin.git:
+    repo: "{{git_devops_priv}}"
+    dest: "{{git_devops_priv_folder}}"
+    accept_newhostkey: true
+    force: true
+    clone: true
+- name: Overwrite config files
+  ansible.builtin.shell: |
+    cp -f "{{git_devops_priv_folder}}"/root/.zshrc /root/
+    cp -f "{{git_devops_priv_folder}}"/root/.oh-my-zsh/oh-my-zsh.sh ~/.oh-my-zsh/
+    cp -f "{{git_devops_priv_folder}}"/root/.oh-my-zsh/themes/agnoster.zsh-theme ~/.oh-my-zsh/themes/agnoster.zsh-theme
+    cp -f "{{git_devops_priv_folder}}"/root/.oh-my-zsh/plugins/terraform/terraform.plugin.zsh ~/.oh-my-zsh/plugins/terraform/
+    rm -rf ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+    git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions

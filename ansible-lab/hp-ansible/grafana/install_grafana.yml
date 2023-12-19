@@ -1,0 +1,49 @@
+---
+- hosts: hp
+  become: yes
+  remote_user: root
+  become_user: root
+  
+  tasks:
+  - name: Remove old Grafana Repo
+    ansible.builtin.file:
+      path: /etc/yum.repos.d/grafana.repo
+      state: absent
+  - name: Create empty Grafana Repo file
+    ansible.builtin.file:
+      path: /etc/yum.repos.d/grafana.repo
+      state: touch      
+  - name: Add Grafana Repo
+    blockinfile:
+        path: /etc/yum.repos.d/grafana.repo
+        block: |
+                  [grafana]
+                  name=grafana
+                  baseurl=https://rpm.grafana.com
+                  repo_gpgcheck=1
+                  enabled=1
+                  gpgcheck=1
+                  gpgkey=https://rpm.grafana.com/gpg.key
+                  sslverify=1
+                  sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+                  exclude=*beta*
+  - name: Remove Grafana
+    yum:
+      name: grafana
+      state: absent
+  - name: Install Grafana Enterprise
+    yum:
+      name: grafana-enterprise
+      state: latest
+  - name: Reload systemd
+    ansible.builtin.systemd:
+      daemon_reload: yes
+  - name: Start Grafana service
+    ansible.builtin.systemd:
+      state: started
+      name: grafana-server
+  - name: Enable Grafana service
+    ansible.builtin.systemd:
+      enabled: yes
+      name: grafana-server
+      masked: no

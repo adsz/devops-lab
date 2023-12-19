@@ -1,0 +1,31 @@
+---
+# - name: Include all default extension files in vars/all and all nested directories and save the output in test. (2.2)
+#   ansible.builtin.include_vars:
+#     dir: group_vars/all.yml
+#     name: all
+  - name: Show Git Repo
+    debug:
+      msg: "{{git_oh_my_zsh}}"
+  - name: Delete /root/.oh-my-zsh folder
+    file:
+      state: absent
+      path: /root/.oh-my-zsh
+  - name: Install git and zsh
+    yum:
+      name: git, zsh
+      state: latest
+  - name: Download oh-my-zsh
+    get_url:
+      #  url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+       url: "{{git_oh_my_zsh}}"
+       dest: /tmp
+       mode: 0775
+  - name: Install oh-my-zsh
+    expect:
+      command: /tmp/install.sh --unattended \
+               echo "OK"
+      responses: 
+          (.*)Do you want to change your default shell to zsh?(.*): 'n'
+  - name: Change default shell to zsh
+    ansible.builtin.shell: |
+      chsh -s /bin/zsh $(whoami)

@@ -1,0 +1,44 @@
+---
+  - name: Create Prometheus system group
+    ansible.builtin.group:
+      name: prometheus
+      system: true
+      state: present 
+  - name: Create Prometheus system user
+    ansible.builtin.user:
+      name: prometheus
+      shell: /sbin/nologin
+      groups: prometheus
+      system: true
+      append: yes
+  - name: Create data directory for Prometheus 
+    ansible.builtin.file:
+      path: /var/lib/prometheus
+      state: directory
+      owner: prometheus
+      group: prometheus
+  - name: Create configuration directories for Prometheus
+    ansible.builtin.shell: for i in rules rules.d files_sd; do sudo mkdir -p /etc/prometheus/${i}; done
+    args:
+      executable: /bin/bash
+  - name: Install wget
+    yum:
+      name: wget
+      state: latest
+  - name: Download latest binary archive for Prometheus 
+    ansible.builtin.shell: |
+      mkdir -p /tmp/prometheus && cd /tmp/prometheus
+      curl -s https://api.github.com/repos/prometheus/prometheus/releases/latest \
+      | grep browser_download_url \
+      | grep linux-amd64 \
+      | cut -d '"' -f 4 \
+      | wget -qi -
+      tar xvf prometheus*.tar.gz
+      cd prometheus*/
+      sudo mv prometheus promtool /usr/local/bin/
+      sudo mv prometheus.yml  /etc/prometheus/prometheus.yml
+      sudo mv consoles/ console_libraries/ /etc/prometheus/
+      cd ~/
+      rm -rf /tmp/prometheus
+    args:
+      executable: /bin/bash

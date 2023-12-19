@@ -1,0 +1,8 @@
+---
+# nonsensitive data
+git_oh_my_zsh: "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
+# You need to add ssh key to github
+git_devops_priv: "git@github.com:adsz/devops-priv.git"
+
+# sensitive data
+git_api: "{{ git_api }}"

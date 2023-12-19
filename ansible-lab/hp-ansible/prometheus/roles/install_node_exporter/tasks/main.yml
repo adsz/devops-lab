@@ -1,0 +1,90 @@
+- name: Create Node Exporter system group
+  ansible.builtin.group:
+    name: exporter
+    system: true
+    state: present 
+- name: Create Node Exporter system user
+  ansible.builtin.user:
+    name: exporter
+    shell: /sbin/nologin
+    groups: exporter
+    system: true
+    append: yes
+- name: Download latest binary archive for Node Exporter 
+  ansible.builtin.shell: |
+    mkdir -p /tmp/node_exporter && cd /tmp/node_exporter
+    curl -s https://api.github.com/repos/prometheus/node_exporter/releases/latest \
+    | grep browser_download_url \
+    | grep linux-amd64 \
+    | cut -d '"' -f 4 \
+    | wget -qi -
+    tar xvf node_exporter*.tar.gz
+    cd node_exporter*/
+    sudo mv node_exporter /usr/local/bin/
+    sudo chown exporter:exporter /usr/local/bin/node_exporter
+    cd ~/
+    rm -rf /tmp/node_exporter
+  args:
+    executable: /bin/bash
+  register: command_output
+- debug:
+      var: command_output.stdout_lines
+- name: Create node_exporter.service
+  ansible.builtin.copy:
+    src: ../files/node_exporter.service
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0775'
+    backup: yes
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+- name: Start node_exporter service
+  ansible.builtin.systemd:
+    state: started
+    name: node_exporter
+- name: Enable node_exporter service
+  ansible.builtin.systemd:
+    enabled: yes
+    name: node_exporter
+    masked: no
+- name: Overwrite prometheus.yml
+  ansible.builtin.copy:
+    src: ../files/prometheus.yml
+    dest: /etc/prometheus/prometheus.yml
+    owner: root
+    group: root
+    mode: '0775'
+    backup: yes
+- name: Modify listening port for Prometheus 
+  ansible.builtin.shell: |
+    sudo sed -i 's/9090/9091/g' /etc/prometheus/prometheus.yml
+  args:
+    executable: /bin/bash
+# - name: Amend Prometheus config
+  # blockinfile:
+  #   path: /etc/prometheus/prometheus.yml
+  #   block: |1
+  #             - job_name: "node_exporter"
+  #               static_configs:
+  #               - targets: ["0.0.0.0:9100"]
+  # lineinfile:
+  #   path: /etc/prometheus/prometheus.yml
+  #   line:   - job_name: "node_exporter" \n    static_configs: \n    - targets: ["0.0.0.0:9100"]
+
+  # lineinfile: 
+  #   dest: /etc/prometheus/prometheus.yml
+  #   line: '{{ item }}'
+  # with_items:
+  #   - '  - job_name: "node_exporter"'
+  #   - '    static_configs:'
+  #   - '    - targets: ["0.0.0.0:9100"]' 
+# - name: Reload systemd
+#   ansible.builtin.systemd:
+#     daemon_reload: yes
+- name: Restart prometheus service and reload systemd
+  ansible.builtin.systemd:
+    state: restarted
+    daemon_reload: yes
+    name: prometheus

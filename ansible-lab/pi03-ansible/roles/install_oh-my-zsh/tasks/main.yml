@@ -1,0 +1,38 @@
+# ---
+# - name: Ansible Playbook for Ubuntu
+#   hosts: all
+#   become: yes
+
+#   tasks:
+    - name: Show Git Repo
+      debug:
+        msg: "{{ git_oh_my_zsh }}"
+
+    - name: Delete /root/.oh-my-zsh folder
+      file:
+        state: absent
+        path: /root/.oh-my-zsh
+
+    - name: Install git and zsh
+      apt:
+        name: "{{ item }}"
+        state: latest
+      loop:
+        - git
+        - zsh
+
+    - name: Download oh-my-zsh
+      get_url:
+        url: "{{ git_oh_my_zsh }}"
+        dest: /tmp/install.sh
+        mode: '0775'
+
+    - name: Install oh-my-zsh
+      expect:
+        command: /tmp/install.sh --unattended
+        responses: 
+            (.*)Do you want to change your default shell to zsh?(.*): 'n'
+
+    - name: Change default shell to zsh
+      ansible.builtin.shell:
+        cmd: chsh -s /bin/zsh "{{ ansible_env.USER }}"
