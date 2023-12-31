@@ -1,0 +1,28 @@
+# Working if adsz user is present with A*******$ password configured 
+# and provided with sudo access + secret with sudo password is available in the parrent folder
+# ansible-vault create secret.yml
+# 
+# ansible-vault view secret.yml
+# ansible-playbook ul-test-01/create_ansible_user_with_sudo_and_ssh_key.yaml  --ask-vault-pass
+---
+- name: Create Ansible user with passwordless SSH access
+  hosts: ul_test
+  become: yes
+  vars_files:
+    - ../secret.yml
+  vars:
+    username: ansible
+    public_key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+
+  tasks:
+    - name: Ensure the Ansible user exists
+      user:
+        name: "{{ username }}"
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Set authorized key for the Ansible user
+      authorized_key:
+        user: "{{ username }}"
+        state: present
+        key: "{{ public_key }}"

@@ -1,0 +1,15 @@
+---
+- hosts: ul-test-01
+  become: yes
+  vars_files:
+  - ../secret.yml
+  tasks:
+    - name: Update Netplan DNS configuration
+      template:
+        src: dns-netplan-config.yml.j2
+        dest: /etc/netplan/01-netcfg.yaml
+      notify: apply netplan
+
+  handlers:
+    - name: apply netplan
+      command: netplan apply

@@ -1,0 +1,7 @@
+# dns-netplan-config.yaml.j2
+network:
+  version: 2
+  ethernets:
+    {{ ansible_default_ipv4.interface }}:
+      nameservers:
+        addresses: [8.8.8.8, 1.1.1.1]  # Replace with your desired DNS servers
