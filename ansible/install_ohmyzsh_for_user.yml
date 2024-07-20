@@ -1,0 +1,56 @@
+---
+- name: Remove existing Oh My Zsh installation (if any)
+  ansible.builtin.file:
+    path: "{{ (username == 'root') | ternary('/root', '/home/' + username) }}/.oh-my-zsh"
+    state: absent
+  become: true
+
+- name: Install Oh My Zsh
+  ansible.builtin.shell:
+    cmd: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    creates: "{{ (username == 'root') | ternary('/root', '/home/' + username) }}/.oh-my-zsh"
+  become: true
+  become_user: "{{ username }}"
+
+- name: Install Oh My Zsh plugins
+  ansible.builtin.git:
+    repo: "https://github.com/{{ item.repo }}.git"
+    dest: "{{ (username == 'root') | ternary('/root', '/home/' + username) }}/.oh-my-zsh/custom/plugins/{{ item.name }}"
+    version: master
+    force: yes
+  loop:
+    - { name: 'zsh-autosuggestions', repo: 'zsh-users/zsh-autosuggestions' }
+    - { name: 'zsh-syntax-highlighting', repo: 'zsh-users/zsh-syntax-highlighting' }
+  become: true
+  become_user: "{{ username }}"
+
+- name: Ensure .zshrc exists
+  ansible.builtin.file:
+    path: "{{ (username == 'root') | ternary('/root', '/home/' + username) }}/.zshrc"
+    state: touch
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: '0644'
+  become: true
+
+- name: Configure .zshrc
+  ansible.builtin.blockinfile:
+    path: "{{ (username == 'root') | ternary('/root', '/home/' + username) }}/.zshrc"
+    block: |
+      export ZSH="{{ (username == 'root') | ternary('/root', '/home/' + username) }}/.oh-my-zsh"
+      ZSH_THEME="agnoster"
+      plugins=(git git-prompt sudo ansible aws terraform colorize docker zsh-autosuggestions colored-man-pages copyfile dirhistory kubectl docker-machine history emoji encode64)
+      source $ZSH/oh-my-zsh.sh
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - OH MY ZSH CONFIGURATION"
+  become: true
+
+- name: Ensure .bashrc sources .zshrc for interactive sessions
+  ansible.builtin.blockinfile:
+    path: "{{ (username == 'root') | ternary('/root', '/home/' + username) }}/.bashrc"
+    block: |
+      # Start Zsh for interactive sessions
+      if [ -t 1 ]; then
+        exec zsh
+      fi
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - OH MY ZSH"
+  become: true

@@ -1,0 +1,9 @@
+---
+- name: Setup Portainer Access
+  hosts: localhost
+  tasks:
+    - name: Apply Portainer IngressRoute
+      community.kubernetes.k8s:
+        kubeconfig: "/path/to/your/kubeconfig"
+        state: present
+        filename: "/path/to/portainer-ingressroute.yaml"

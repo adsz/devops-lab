@@ -1,0 +1,53 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check if system tools are installed
+      command: which {{ item }}
+      register: tool_check
+      changed_when: false
+      failed_when: tool_check.rc != 0
+      loop:
+        - htop
+        - atop
+        - btop
+        - mc
+
+    - name: Verify system tools versions (except atop)
+      command: "{{ item }} --version"
+      register: version_check
+      changed_when: false
+      failed_when: version_check.rc != 0
+      loop:
+        - htop
+        - btop
+        - mc
+
+    - name: Verify atop version
+      shell: "atop -V | head -n 1"
+      register: atop_version
+      changed_when: false
+      failed_when: atop_version.rc != 0
+      
+
+    - name: Display installed versions
+      debug:
+        msg: "{{ item.cmd[0] }} version: {{ item.stdout_lines[0] }}"
+      loop: "{{ version_check.results }}"
+
+    - name: Display atop version
+      debug:
+        msg: "atop version: {{ atop_version.stdout }}"
+
+    - name: Check if tools are in PATH
+      shell: |
+        echo $PATH | grep -q "$(dirname $(which {{ item }}))"
+      register: path_check
+      changed_when: false
+      failed_when: path_check.rc != 0
+      loop:
+        - htop
+        - atop
+        - btop
+        - mc

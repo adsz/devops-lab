@@ -1,0 +1,15 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+  when: ansible_os_family == 'Debian'
+
+- name: Install system tools
+  apt:
+    name:
+      - htop
+      - atop
+      - btop
+      - mc
+    state: present
+  when: ansible_os_family == 'Debian'

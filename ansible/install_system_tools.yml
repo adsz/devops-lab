@@ -1,0 +1,49 @@
+---
+- name: Install system tools on Ubuntu hosts
+  hosts: ubuntu_hosts
+  become: yes
+  vars_files:
+    - vars.yml
+  vars:
+    success_icon: ":white_check_mark:"
+    failure_icon: ":x:"
+    task_results: []
+
+  roles:
+    - system_tools
+
+  tasks:
+    - name: Prepare task result summary
+      set_fact:
+        task_summary: "{{ task_results | map(attribute='name') | zip(task_results | map(attribute='status')) | map('join', ': ') | join('\n') }}"
+
+    - name: Prepare Slack message
+      set_fact:
+        slack_message: |
+          Ansible Alert: System tools installation summary for {{ inventory_hostname }}:
+
+          Task Results:
+          {{ task_summary }}
+
+          {% if task_results | selectattr('status', 'equalto', 'failure') | list | length > 0 %}
+          Please check the logs for more details on any failures.
+          {% endif %}
+
+    - name: Send Slack summary notification
+      uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: "{{ {'text': slack_message } | to_json }}"
+        body_format: json
+
+  handlers:
+    - name: Send Slack notification
+      uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: "{{ {'text': 'Ansible Alert: System tools installation failed on ' + inventory_hostname + '.\nPlease check the logs for more details.\n' + slack_message } | to_json }}"
+        body_format: json

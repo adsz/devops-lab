@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../../yt"
+		},
+		{
+			"path": "../../../../data/yt"
+		}
+	],
+	"settings": {
+		"ansible.python.interpreterPath": "/bin/python"
+	}
+}

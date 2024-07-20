@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Only run in interactive sessions
+[[ $- != *i* ]] && return
+
+# Set up logging
+LOG_FILE="/tmp/ohmyzsh_setup_$USER.log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+echo "Starting Oh My Zsh setup for user $USER at $(date)"
+
+# Check if Oh My Zsh is already installed
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    echo "Oh My Zsh not found. Installing..."
+    # Install Oh My Zsh
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || {
+        echo "Failed to install Oh My Zsh"
+        exit 1
+    }
+
+    echo "Installing plugins..."
+    # Install plugins
+    git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions || echo "Failed to install zsh-autosuggestions"
+    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting || echo "Failed to install zsh-syntax-highlighting"
+
+    # Copy .zshrc from /etc/skel if it exists
+    if [ -f /etc/skel/.zshrc ]; then
+        echo "Copying .zshrc from /etc/skel"
+        cp /etc/skel/.zshrc $HOME/.zshrc || echo "Failed to copy .zshrc"
+    fi
+else
+    echo "Oh My Zsh is already installed"
+fi
+
+# Set Zsh as the default shell
+if [ "$SHELL" != "/bin/zsh" ]; then
+    echo "Setting Zsh as the default shell"
+    chsh -s /bin/zsh || echo "Failed to set Zsh as default shell"
+fi
+
+echo "Oh My Zsh setup completed for user $USER at $(date)"

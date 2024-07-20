@@ -1,2 +1,3 @@
-.vault_pass
+ansible-lab/secret.yml
+ansible-lab/.vault_pass
 .vscode

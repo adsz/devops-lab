@@ -1,0 +1,6 @@
+---
+system_tools_packages:
+  - htop
+  - atop
+  - btop
+  - mc

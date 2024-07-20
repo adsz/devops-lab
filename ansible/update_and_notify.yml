@@ -1,0 +1,168 @@
+---
+- name: Fix apt repository issues and update/upgrade packages on Ubuntu hosts
+  hosts: ubuntu_hosts
+  become: yes
+  vars_files:
+    - vars.yml
+  vars:
+    success_icon: ":white_check_mark:"
+    failure_icon: ":x:"
+    task_results: []
+
+  tasks:
+    - name: Backup current sources.list
+      command: cp /etc/apt/sources.list /etc/apt/sources.list.bak
+      register: task_output
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Backup current sources.list', 'status': 'success' if task_output.rc == 0 else 'failure'}] }}"
+
+    - name: Backup sources.list.d directory
+      command: cp -r /etc/apt/sources.list.d /etc/apt/sources.list.d.bak
+      register: task_output
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Backup sources.list.d directory', 'status': 'success' if task_output.rc == 0 else 'failure'}] }}"
+
+    - name: Remove problematic repository files
+      file:
+        path: "/etc/apt/sources.list.d/{{ item }}"
+        state: absent
+      with_items:
+        - "linuxmirrors.ir.list"
+        - "csg.uzh.ch.list"
+      ignore_errors: yes
+      register: task_output
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Remove problematic repository files', 'status': 'success' if task_output.results | map(attribute='failed') | select('equalto', true) | list | length == 0 else 'failure'}] }}"
+
+    - name: Comment out problematic lines in sources.list
+      replace:
+        path: /etc/apt/sources.list
+        regexp: '^(deb.*?csg\.uzh\.ch.*?)$'
+        replace: '# \1'
+      ignore_errors: yes
+      register: task_output
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Comment out problematic lines in sources.list', 'status': 'success' if not task_output.failed else 'failure'}] }}"
+
+    - name: Update sources.list for x86_64
+      copy:
+        dest: /etc/apt/sources.list
+        content: |
+          deb http://archive.ubuntu.com/ubuntu/ jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse
+          deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+      when: ansible_architecture != "aarch64"
+      register: task_output
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Update sources.list for x86_64', 'status': 'success' if not task_output.failed else 'failure'}] }}"
+      when: ansible_architecture != "aarch64"
+
+    - name: Update sources.list for arm64
+      copy:
+        dest: /etc/apt/sources.list
+        content: |
+          deb http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse
+          deb http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse
+          deb http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse
+          deb http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
+      when: ansible_architecture == "aarch64"
+      register: task_output
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Update sources.list for arm64', 'status': 'success' if not task_output.failed else 'failure'}] }}"
+      when: ansible_architecture == "aarch64"
+
+    - name: Force apt to use IPv4
+      lineinfile:
+        path: /etc/apt/apt.conf.d/99force-ipv4
+        line: 'Acquire::ForceIPv4 "true";'
+        create: yes
+      ignore_errors: yes
+      register: task_output
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Force apt to use IPv4', 'status': 'success' if not task_output.failed else 'failure'}] }}"
+
+    - name: Clean apt cache
+      command: apt-get clean
+      ignore_errors: yes
+      register: task_output
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Clean apt cache', 'status': 'success' if task_output.rc == 0 else 'failure'}] }}"
+
+    - name: Update apt cache with increased retry
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      register: update_result
+      retries: 5
+      delay: 10
+      until: update_result is success
+      ignore_errors: yes
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Update apt cache', 'status': 'success' if not update_result.failed else 'failure'}] }}"
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+      register: upgrade_result
+      ignore_errors: yes
+
+    - name: Record task result
+      set_fact:
+        task_results: "{{ task_results + [{'name': 'Upgrade all packages', 'status': 'success' if not upgrade_result.failed else 'failure'}] }}"
+
+    - name: Prepare task result summary
+      set_fact:
+        task_summary: "{{ task_results | map(attribute='name') | zip(task_results | map(attribute='status')) | map('join', ': ') | join('\n') }}"
+
+    - name: Prepare Slack message
+      set_fact:
+        slack_message: |
+          Ansible Alert: apt-get update and upgrade summary for {{ inventory_hostname }}:
+
+          Task Results:
+          {{ task_summary }}
+
+          Update Result: {{ success_icon if not update_result.failed else failure_icon }}
+          Upgrade Result: {{ success_icon if not upgrade_result.failed else failure_icon }}
+
+          {% if update_result.failed or upgrade_result.failed %}
+          Please check the logs for more details.
+          {% endif %}
+
+    - name: Send Slack summary notification
+      uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: "{{ {'text': slack_message } | to_json }}"
+        body_format: json
+
+  handlers:
+    - name: Send Slack notification
+      uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: "{{ {'text': 'Ansible Alert: apt-get update or apt-get upgrade failed on ' + inventory_hostname + '.\nPlease check the logs for more details.\n' + slack_message } | to_json }}"
+        body_format: json

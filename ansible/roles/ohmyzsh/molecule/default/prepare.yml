@@ -1,0 +1,10 @@
+---
+- name: Prepare
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install prerequisites
+      apt:
+        name: zsh
+        state: present
+        update_cache: yes

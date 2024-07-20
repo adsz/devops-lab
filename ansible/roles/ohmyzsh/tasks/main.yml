@@ -1,0 +1,45 @@
+---
+- name: Install dependencies
+  ansible.builtin.package:
+    name:
+      - zsh
+      - git
+      - curl
+    state: present
+  become: true
+
+- name: Get all users with a home directory
+  ansible.builtin.getent:
+    database: passwd
+  register: all_users
+
+- name: Install Oh My Zsh for all users
+  ansible.builtin.include_tasks: install_ohmyzsh.yml
+  loop: "{{ all_users.ansible_facts.getent_passwd | dict2items | selectattr('value.1', 'match', '^/home/') | map(attribute='key') | list + ['root'] }}"
+  loop_control:
+    loop_var: username
+
+- name: Set default shell to zsh for all users
+  ansible.builtin.user:
+    name: "{{ item }}"
+    shell: /bin/zsh
+  loop: "{{ all_users.ansible_facts.getent_passwd | dict2items | selectattr('value.1', 'match', '^/home/') | map(attribute='key') | list + ['root'] }}"
+  become: true
+
+- name: Set default shell to zsh for new users
+  ansible.builtin.lineinfile:
+    path: "{{ item }}"
+    regexp: '^SHELL='
+    line: 'SHELL=/bin/zsh'
+  loop:
+    - /etc/default/useradd
+    - /etc/adduser.conf
+  become: true
+  ignore_errors: true
+
+- name: Create script to setup Oh My Zsh for new users
+  ansible.builtin.template:
+    src: setup_ohmyzsh.sh.j2
+    dest: /etc/profile.d/setup_ohmyzsh.sh
+    mode: '0755'
+  become: true

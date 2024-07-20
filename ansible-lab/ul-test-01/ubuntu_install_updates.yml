@@ -10,13 +10,14 @@
         upgrade: yes
         update_cache: yes
       register: apt_update_status
-
+    - name: auto-remove unneeded packages
+      apt:
+        autoremove: yes
     - name: check if system reboot is required
       become: true
       stat:
         path: /var/run/reboot-required
       register: reboot_required
-
     - name: Send Slack notification after successful apt update
       uri:
         url: "{{ ansible_slack_webhook_url }}"
@@ -27,7 +28,6 @@
           Content-Type: application/json
         status_code: 200
       # when: apt_update_status.changed
-
     - name: Send Slack notification if reboot is required
       uri:
         url: "{{ ansible_slack_webhook_url }}"

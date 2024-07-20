@@ -1,0 +1,5 @@
+---
+- hosts: zsh_hosts
+  become: true
+  roles:
+    - setup-zsh-history

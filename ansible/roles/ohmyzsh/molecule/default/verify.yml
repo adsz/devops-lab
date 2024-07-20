@@ -1,0 +1,24 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Check if zsh is installed
+      command: zsh --version
+      register: zsh_installed
+      failed_when: zsh_installed.rc != 0
+
+    - name: Verify Oh My Zsh installation
+      command: test -d /root/.oh-my-zsh
+      register: ohmyzsh_installed
+      failed_when: ohmyzsh_installed.rc != 0
+
+    - name: Get all users with a home directory
+      command: cat /etc/passwd
+      register: passwd_output
+
+    - name: Verify Oh My Zsh installation for all users
+      command: test -d /home/{{ item }}/.oh-my-zsh
+      with_items: "{{ passwd_output.stdout_lines | map('regex_search', '^([^:]+):[^:]+:[^:]+:[^:]+:[^:]*:([^:]+):[^:]*$') | select('defined') | map('last') | select('search', '^/home/') | map('regex_replace', '^/home/(.*)', '\\1') }}"
+      register: user_ohmyzsh_installed
+      failed_when: user_ohmyzsh_installed.results | selectattr('rc', '!=', 0) | list | length > 0

@@ -1,0 +1,100 @@
+---
+- name: Install and configure Oh My Zsh
+  hosts: ubuntu_hosts
+  become: yes
+  vars:
+    playbook_dir: "/repos/devops-lab/ansible"
+  tasks:
+    - name: Install dependencies
+      ansible.builtin.package:
+        name:
+          - zsh
+          - git
+          - curl
+        state: present
+
+    - name: Ensure Zsh is in /etc/shells
+      ansible.builtin.lineinfile:
+        path: /etc/shells
+        line: /bin/zsh
+        state: present
+
+    - name: Set Zsh as default shell for ubuntu user
+      ansible.builtin.user:
+        name: ubuntu
+        shell: /bin/zsh
+
+    - name: Set Zsh as default shell for root user
+      ansible.builtin.user:
+        name: root
+        shell: /bin/zsh
+
+    - name: Remove existing Oh My Zsh installation for ubuntu
+      ansible.builtin.file:
+        path: "/home/ubuntu/.oh-my-zsh"
+        state: absent
+
+    - name: Remove existing Oh My Zsh installation for root
+      ansible.builtin.file:
+        path: "/root/.oh-my-zsh"
+        state: absent
+
+    - name: Install Oh My Zsh for ubuntu
+      ansible.builtin.shell:
+        cmd: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        creates: "/home/ubuntu/.oh-my-zsh"
+      become: true
+      become_user: ubuntu
+
+    - name: Install Oh My Zsh for root
+      ansible.builtin.shell:
+        cmd: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        creates: "/root/.oh-my-zsh"
+
+    - name: Install Oh My Zsh plugins for ubuntu
+      ansible.builtin.git:
+        repo: "https://github.com/{{ item.repo }}.git"
+        dest: "/home/ubuntu/.oh-my-zsh/custom/plugins/{{ item.name }}"
+        version: master
+        force: yes
+      loop:
+        - { name: 'zsh-autosuggestions', repo: 'zsh-users/zsh-autosuggestions' }
+        - { name: 'zsh-syntax-highlighting', repo: 'zsh-users/zsh-syntax-highlighting' }
+      become: true
+      become_user: ubuntu
+
+    - name: Install Oh My Zsh plugins for root
+      ansible.builtin.git:
+        repo: "https://github.com/{{ item.repo }}.git"
+        dest: "/root/.oh-my-zsh/custom/plugins/{{ item.name }}"
+        version: master
+        force: yes
+      loop:
+        - { name: 'zsh-autosuggestions', repo: 'zsh-users/zsh-autosuggestions' }
+        - { name: 'zsh-syntax-highlighting', repo: 'zsh-users/zsh-syntax-highlighting' }
+
+    - name: Configure .zshrc for ubuntu
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/roles/ohmyzsh/templates/zshrc_user.j2"
+        dest: "/home/ubuntu/.zshrc"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+
+    - name: Configure .zshrc for root
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/roles/ohmyzsh/templates/zshrc_root.j2"
+        dest: "/root/.zshrc"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Set default shell to zsh for new users
+      ansible.builtin.lineinfile:
+        path: "{{ item }}"
+        regexp: '^SHELL='
+        line: 'SHELL=/bin/zsh'
+      loop:
+        - /etc/default/useradd
+        - /etc/adduser.conf
+      ignore_errors: true

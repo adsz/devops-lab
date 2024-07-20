@@ -1,0 +1,21 @@
+---
+- name: Configure Zsh history with timestamps
+  hosts: your_host_group
+  vars:
+    users:
+      - user1
+      - user2
+  tasks:
+    - name: Ensure .zshrc has necessary settings for Zsh history
+      blockinfile:
+        path: "/home/{{ item }}/.zshrc"
+        block: |
+          setopt EXTENDED_HISTORY
+          setopt HIST_SAVE_NO_DUPS
+          setopt HIST_EXPIRE_DUPS_FIRST
+          setopt HIST_VERIFY
+          setopt HIST_IGNORE_SPACE
+          setopt SHARE_HISTORY
+        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR ZSH HISTORY"
+        create: yes
+      with_items: "{{ users }}"

@@ -1,0 +1,83 @@
+---
+- name: Fix apt repository issues and update/upgrade packages on Ubuntu hosts
+  hosts: ubuntu_hosts
+  become: yes
+  vars:
+    slack_webhook_url: "https://hooks.slack.com/services/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"  # Replace with your actual webhook URL
+  tasks:
+    - name: Backup current sources.list
+      command: cp /etc/apt/sources.list /etc/apt/sources.list.bak
+
+    - name: Backup sources.list.d directory
+      command: cp -r /etc/apt/sources.list.d /etc/apt/sources.list.d.bak
+
+    - name: Update sources.list
+      copy:
+        dest: /etc/apt/sources.list
+        content: |
+          deb http://archive.ubuntu.com/ubuntu/ jammy main restricted
+          deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted
+          deb http://archive.ubuntu.com/ubuntu/ jammy universe
+          deb http://archive.ubuntu.com/ubuntu/ jammy-updates universe
+          deb http://archive.ubuntu.com/ubuntu/ jammy multiverse
+          deb http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse
+          deb http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse
+          deb http://security.ubuntu.com/ubuntu jammy-security main restricted
+          deb http://security.ubuntu.com/ubuntu jammy-security universe
+          deb http://security.ubuntu.com/ubuntu jammy-security multiverse
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      register: update_result
+      ignore_errors: yes
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+      register: upgrade_result
+      ignore_errors: yes
+
+    - name: Gather update and upgrade results
+      set_fact:
+        apt_summary: |
+          apt-get update result:
+          {{ update_result }}
+
+          apt-get upgrade result:
+          {{ upgrade_result }}
+
+    - name: Check if update failed
+      debug:
+        msg: "apt-get update failed!"
+      when: update_result.failed
+      notify:
+        - Send Slack notification
+
+    - name: Check if upgrade failed
+      debug:
+        msg: "apt-get upgrade failed!"
+      when: upgrade_result.failed
+      notify:
+        - Send Slack notification
+
+    - name: Send Slack summary notification
+      uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: "{{ {'text': 'Ansible Alert: apt-get update and upgrade summary for ' + inventory_hostname + ':\n' + apt_summary } | to_json }}"
+        body_format: json
+      when: apt_summary is defined
+
+  handlers:
+    - name: Send Slack notification
+      uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: "{{ {'text': 'Ansible Alert: apt-get update or apt-get upgrade failed on ' + inventory_hostname + '.\nPlease check the logs for more details.\n' + apt_summary } | to_json }}"
+        body_format: json
+
