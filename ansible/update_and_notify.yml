@@ -3,7 +3,7 @@
   hosts: ubuntu_hosts
   become: yes
   vars_files:
-    - vars.yml
+    - vars_vault.yml
   vars:
     success_icon: ":white_check_mark:"
     failure_icon: ":x:"
